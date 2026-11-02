@@ -1,8 +1,10 @@
 #include "mainwindow.h"
 #include <QDebug>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QRandomGenerator>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -28,15 +30,26 @@ void MainWindow::setupUi()
     auto *modeBtn = new QPushButton(QStringLiteral("Режим"), this);
     connect(modeBtn, &QPushButton::clicked, this, &MainWindow::cycleMode);
 
+    auto *addBtn = new QPushButton(QStringLiteral("Добавить цвет"), this);
+    connect(addBtn, &QPushButton::clicked, this, &MainWindow::addColorButton);
+
+    auto *clearBtn = new QPushButton(QStringLiteral("Очистить"), this);
+    connect(clearBtn, &QPushButton::clicked, this, &MainWindow::clearPaletteButtons);
+
     m_modeLabel = new QLabel(this);
 
     top->addWidget(startStop);
     top->addWidget(modeBtn);
+    top->addWidget(addBtn);
+    top->addWidget(clearBtn);
     top->addWidget(m_modeLabel);
     top->addStretch();
 
     m_rootLayout->addLayout(top);
     m_rootLayout->addWidget(&m_canvas, 1);
+
+    m_paletteGrid = new QGridLayout;
+    m_rootLayout->addLayout(m_paletteGrid);
 
     m_statusLabel = new QLabel(this);
     m_rootLayout->addWidget(m_statusLabel);
@@ -69,6 +82,34 @@ void MainWindow::rebuildTimeoutConnection()
     case Mode::Random: m_timeoutConn = connect(&m_timer, &QTimer::timeout, this, [this]() { m_canvas.setRandomColor(); }); break;
     case Mode::Blink:  m_timeoutConn = connect(&m_timer, &QTimer::timeout, this, [this]() { m_canvas.toggleBlink(); }); break;
     }
+}
+
+void MainWindow::addColorButton()
+{
+    const QColor c = QColor::fromHsv(QRandomGenerator::global()->bounded(360), 200, 230);
+    auto *btn = new PaletteButton(c, this);
+    const int idx = m_paletteButtons.size();
+    m_paletteGrid->addWidget(btn, idx / 6, idx % 6);
+    m_paletteButtons.append(btn);
+
+    QMetaObject::Connection conn = connect(btn, &QPushButton::clicked, this, [this, c]() {
+        m_canvas.addColor(c);
+        setStatus(QStringLiteral("Добавлен цвет %1").arg(c.name()));
+    });
+    m_dynamicConnections.append(conn);
+    setStatus(QStringLiteral("Создана кнопка-цвет %1").arg(c.name()));
+}
+
+void MainWindow::clearPaletteButtons()
+{
+    for (const auto &conn : m_dynamicConnections) disconnect(conn);
+    m_dynamicConnections.clear();
+
+    for (const auto &p : m_paletteButtons) {
+        if (p) p->deleteLater();
+    }
+    m_paletteButtons.clear();
+    setStatus(QStringLiteral("Все кнопки-цвета удалены, соединения разорваны."));
 }
 
 void MainWindow::setStatus(const QString &text) { if (m_statusLabel) m_statusLabel->setText(text); }

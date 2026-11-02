@@ -1,14 +1,18 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QList>
 #include <QMetaObject>
+#include <QPointer>
 #include <QTimer>
 #include <QWidget>
 #include "colorwidget.h"
+#include "palettebutton.h"
 
 class QLabel;
 class QVBoxLayout;
 class QHBoxLayout;
+class QGridLayout;
 
 class MainWindow : public QWidget
 {
@@ -20,6 +24,8 @@ public:
 private slots:
     void toggleTimer();
     void cycleMode();
+    void addColorButton();        // <-- ДОБАВЛЕНО
+    void clearPaletteButtons();   // <-- ДОБАВЛЕНО
 
 private:
     enum class Mode { Cycle, Random, Blink };
@@ -36,8 +42,12 @@ private:
     QMetaObject::Connection m_timeoutConn;
 
     QVBoxLayout *m_rootLayout;
+    QGridLayout *m_paletteGrid;    // <-- ДОБАВЛЕНО
     QLabel *m_statusLabel;
     QLabel *m_modeLabel;
+
+    QList<QPointer<PaletteButton>> m_paletteButtons; // <-- ДОБАВЛЕНО
+    QList<QMetaObject::Connection> m_dynamicConnections; // <-- ДОБАВЛЕНО
 };
 
 #endif // MAINWINDOW_H
