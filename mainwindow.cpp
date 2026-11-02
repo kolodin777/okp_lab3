@@ -8,11 +8,12 @@
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QWidget(parent), m_mode(Mode::Cycle)
+    : QWidget(parent), m_mode(Mode::Cycle), m_clickHandlerAlt(false)
 {
     setupUi();
     m_timer.setInterval(600);
     rebuildTimeoutConnection();
+    reconnectCanvasHandler(); // <-- ДОБАВЛЕНО
     setStatus(QStringLiteral("Готово. Таймер настроен."));
 }
 
@@ -36,12 +37,16 @@ void MainWindow::setupUi()
     auto *clearBtn = new QPushButton(QStringLiteral("Очистить"), this);
     connect(clearBtn, &QPushButton::clicked, this, &MainWindow::clearPaletteButtons);
 
+    auto *toggleHandlerBtn = new QPushButton(QStringLiteral("Переподключить обработчик"), this);
+    connect(toggleHandlerBtn, &QPushButton::clicked, this, &MainWindow::toggleClickHandler);
+
     m_modeLabel = new QLabel(this);
 
     top->addWidget(startStop);
     top->addWidget(modeBtn);
     top->addWidget(addBtn);
     top->addWidget(clearBtn);
+    top->addWidget(toggleHandlerBtn);
     top->addWidget(m_modeLabel);
     top->addStretch();
 
@@ -110,6 +115,28 @@ void MainWindow::clearPaletteButtons()
     }
     m_paletteButtons.clear();
     setStatus(QStringLiteral("Все кнопки-цвета удалены, соединения разорваны."));
+}
+
+void MainWindow::toggleClickHandler()
+{
+    m_clickHandlerAlt = !m_clickHandlerAlt;
+    reconnectCanvasHandler();
+    setStatus(QStringLiteral("Обработчик colorChanged переключен."));
+}
+
+void MainWindow::reconnectCanvasHandler()
+{
+    if (m_clickConn) disconnect(m_clickConn);
+
+    if (!m_clickHandlerAlt) {
+        m_clickConn = connect(&m_canvas, &ColorWidget::colorChanged, this, [this](const QColor &c) {
+            setStatus(QStringLiteral("Цвет холста: %1").arg(c.name()));
+        });
+    } else {
+        m_clickConn = connect(&m_canvas, &ColorWidget::colorChanged, this, [this](const QColor &c) {
+            setStatus(QStringLiteral("[ALT] Цвет холста: %1 (яркость %2)").arg(c.name()).arg(c.lightness()));
+        });
+    }
 }
 
 void MainWindow::setStatus(const QString &text) { if (m_statusLabel) m_statusLabel->setText(text); }
